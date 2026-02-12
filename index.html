@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Be My Valentine?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --pink-bg: #f7b4c4;
+      --pink-light: #fcc8d4;
+      --pink-envelope: #e8a0b2;
+      --pink-flap: #d6889c;
+      --pink-shadow: #c47888;
+      --red: #e01030;
+      --dark-red: #c00020;
+      --white: #ffffff;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    body {
+      font-family: 'Caveat', cursive;
+      background: linear-gradient(170deg, #fcc8d4 0%, #f7b4c4 40%, #e8a0b2 100%);
+      color: var(--red);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ================================ */
+    /* Floating SVG hearts background   */
+    /* ================================ */
+    .hearts-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .floating-heart {
+      position: absolute;
+      opacity: 0;
+      animation: floatUp linear infinite;
+    }
+    .floating-heart svg { width: 100%; height: 100%; }
+    @keyframes floatUp {
+      0%   { transform: translateY(110vh) rotate(0deg) scale(1); opacity: 0; }
+      10%  { opacity: 0.2; }
+      90%  { opacity: 0.2; }
+      100% { transform: translateY(-10vh) rotate(360deg) scale(0.5); opacity: 0; }
+    }
+
+    /* ================================ */
+    /* ENVELOPE SCENE                   */
+    /* ================================ */
+    .envelope-scene {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .envelope-scene.opened {
+      opacity: 0;
+      transform: scale(0.8) translateY(60px);
+      pointer-events: none;
+    }
+    .envelope-scene.gone { display: none; }
+
+    .envelope-prompt {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--dark-red);
+      animation: promptPulse 2s ease-in-out infinite;
+    }
+    @keyframes promptPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    /* Envelope container - 3D perspective */
+    .envelope-wrapper {
+      perspective: 800px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .envelope {
+      width: 280px;
+      height: 190px;
+      position: relative;
+      filter: drop-shadow(0 8px 24px rgba(150, 60, 80, 0.35));
+    }
+
+    /* Envelope body */
+    .envelope-body {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 150px;
+      background: var(--pink-envelope);
+      border-radius: 0 0 12px 12px;
+      z-index: 2;
+      overflow: hidden;
+    }
+
+    /* Inner V-fold lines on the envelope body */
+    .envelope-body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 100%;
+      background:
+        linear-gradient(to bottom right, transparent 49.5%, var(--pink-shadow) 49.5%, var(--pink-shadow) 50.5%, transparent 50.5%),
+        linear-gradient(to bottom left, transparent 49.5%, var(--pink-shadow) 49.5%, var(--pink-shadow) 50.5%, transparent 50.5%);
+      opacity: 0.3;
+    }
+
+    /* Card peeking inside */
+    .envelope-card-peek {
+      position: absolute;
+      bottom: 10px;
+      left: 16px;
+      right: 16px;
+      height: 130px;
+      background: var(--white);
+      border-radius: 4px;
+      z-index: 1;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    /* Flap (triangle) - uses 3D rotation to open */
+    .envelope-flap {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100px;
+      transform-origin: top center;
+      transform: rotateX(0deg);
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 3;
+    }
+    .envelope-flap.open {
+      transform: rotateX(-180deg);
+    }
+
+    .envelope-flap-face {
+      width: 280px;
+      height: 100px;
+      background: var(--pink-flap);
+      clip-path: polygon(0 0, 50% 100%, 100% 0);
+    }
+
+    /* Heart seal on envelope */
+    .envelope-seal {
+      position: absolute;
+      top: 35px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 4;
+      transition: opacity 0.4s ease;
+    }
+    .envelope-seal.hide { opacity: 0; }
+
+    /* ================================ */
+    /* CARD SCENE                       */
+    /* ================================ */
+    .card-scene {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    .card-scene.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Physical card */
+    .card {
+      width: 92%;
+      max-width: 380px;
+      background: var(--pink-bg);
+      border-radius: 16px;
+      box-shadow:
+        0 12px 40px rgba(120, 40, 60, 0.3),
+        0 2px 8px rgba(120, 40, 60, 0.15);
+      padding: 24px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: visible;
+      transform: translateY(60px) scale(0.9);
+      animation: cardSlideUp 0.8s 0.1s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+      max-height: 90vh;
+    }
+    @keyframes cardSlideUp {
+      to { transform: translateY(0) scale(1); }
+    }
+
+    /* Word image - crop to just the text portion */
+    .word-image-wrap {
+      width: 90%;
+      max-width: 320px;
+      height: 70px;
+      overflow: hidden;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+    .word-image {
+      width: 100%;
+      height: auto;
+      display: block;
+      /* The text is at top of the image; this crops the huge whitespace below */
+    }
+
+    /* Cupid - big and centered */
+    .cupid-image {
+      width: 85%;
+      max-width: 300px;
+      height: auto;
+      animation: cupidBounce 2.5s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes cupidBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .subtitle {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--red);
+      margin-top: 2px;
+      margin-bottom: 10px;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    /* ================================ */
+    /* Buttons area                     */
+    /* ================================ */
+    .buttons-area {
+      position: relative;
+      width: 100%;
+      height: 120px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 28px;
+      padding-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .btn-yes {
+      padding: 12px 36px;
+      border-radius: 8px;
+      border: 3px solid var(--red);
+      font-family: 'Caveat', cursive;
+      font-weight: 700;
+      font-size: 1.8rem;
+      cursor: pointer;
+      background: var(--white);
+      color: var(--red);
+      position: relative;
+      z-index: 5;
+      transition: transform 0.2s, background 0.2s;
+      line-height: 1;
+    }
+    .btn-yes:hover { transform: scale(1.08); background: #fff0f3; }
+    .btn-yes:active { transform: scale(1.02); }
+
+    /* Heart before Yes */
+    .btn-yes::before {
+      content: '';
+      display: inline-block;
+      width: 22px;
+      height: 20px;
+      margin-right: 6px;
+      background: var(--red);
+      clip-path: path('M11 18 C11 18 1 12 1 6 C1 2.5 4 0 7 0 C9 0 10.5 1 11 2.5 C11.5 1 13 0 15 0 C18 0 21 2.5 21 6 C21 12 11 18 11 18 Z');
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+
+    .btn-no {
+      padding: 12px 28px;
+      border-radius: 8px;
+      border: 3px solid var(--red);
+      font-family: 'Caveat', cursive;
+      font-weight: 700;
+      font-size: 1.6rem;
+      cursor: pointer;
+      background: var(--white);
+      color: var(--red);
+      position: absolute;
+      z-index: 4;
+      transition: none;
+      user-select: none;
+      -webkit-user-select: none;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    /* Checkbox before No */
+    .btn-no::before {
+      content: '';
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      margin-right: 6px;
+      border: 3px solid var(--red);
+      border-radius: 2px;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+
+    .btn-no.panicking {
+      animation: panicShake 0.1s ease infinite;
+    }
+    @keyframes panicShake {
+      0% { rotate: -8deg; }
+      25% { rotate: 6deg; }
+      50% { rotate: -5deg; }
+      75% { rotate: 7deg; }
+      100% { rotate: -8deg; }
+    }
+
+    .escape-trail {
+      position: fixed;
+      pointer-events: none;
+      z-index: 3;
+      animation: trailFade 0.6s ease forwards;
+    }
+    .escape-trail svg { width: 100%; height: 100%; }
+    @keyframes trailFade {
+      0% { transform: scale(1) translateY(0); opacity: 0.6; }
+      100% { transform: scale(0) translateY(-20px); opacity: 0; }
+    }
+
+    .btn-no.scared {
+      animation: scaredJump 0.3s ease;
+    }
+    @keyframes scaredJump {
+      0% { scale: 1; }
+      30% { scale: 0.7; }
+      60% { scale: 1.15; }
+      100% { scale: 1; }
+    }
+
+    /* ================================ */
+    /* Success screen                   */
+    /* ================================ */
+    .success-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+      animation: fadeInUp 0.8s ease;
+      padding: 24px;
+    }
+    .success-screen.active { display: flex; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .success-cupid {
+      width: 55%;
+      max-width: 220px;
+      height: auto;
+      animation: cupidBounce 2s ease-in-out infinite;
+    }
+
+    .success-title {
+      font-family: 'Caveat', cursive;
+      font-size: 2.6rem;
+      font-weight: 700;
+      color: var(--red);
+      line-height: 1.2;
+    }
+
+    .success-message {
+      font-family: 'Caveat', cursive;
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: var(--dark-red);
+      max-width: 300px;
+      line-height: 1.4;
+    }
+
+    .success-card {
+      background: var(--white);
+      border: 3px solid var(--red);
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-top: 8px;
+    }
+
+    .success-card-title {
+      font-family: 'Caveat', cursive;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--red);
+      margin-bottom: 10px;
+    }
+
+    .success-card-detail {
+      font-family: 'Caveat', cursive;
+      font-size: 1.3rem;
+      font-weight: 500;
+      color: var(--dark-red);
+      line-height: 1.8;
+    }
+    .success-card-detail strong {
+      color: var(--red);
+      font-size: 1.4rem;
+    }
+
+    /* ================================ */
+    /* Confetti                         */
+    /* ================================ */
+    .confetti-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      overflow: hidden;
+    }
+    .confetti {
+      position: absolute;
+      top: -10px;
+      animation: confettiFall linear forwards;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg) scale(0.3); opacity: 0; }
+    }
+
+    .heart-burst {
+      position: fixed;
+      pointer-events: none;
+      z-index: 99;
+    }
+    .heart-burst svg { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+
+  <!-- Floating hearts background -->
+  <div class="hearts-bg" id="heartsBg"></div>
+
+  <!-- =============================== -->
+  <!-- PHASE 1: ENVELOPE               -->
+  <!-- =============================== -->
+  <div class="envelope-scene" id="envelopeScene">
+    <div class="envelope-wrapper" id="envelopeWrapper">
+      <div class="envelope">
+        <!-- Flap -->
+        <div class="envelope-flap" id="envelopeFlap">
+          <div class="envelope-flap-face"></div>
+        </div>
+        <!-- Seal heart -->
+        <div class="envelope-seal" id="envelopeSeal">
+          <svg width="40" height="36" viewBox="0 0 24 24" fill="#c00020">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </div>
+        <!-- Card peeking out -->
+        <div class="envelope-card-peek"></div>
+        <!-- Body -->
+        <div class="envelope-body"></div>
+      </div>
+    </div>
+    <p class="envelope-prompt">tap to open</p>
+  </div>
+
+  <!-- =============================== -->
+  <!-- PHASE 2: CARD WITH CONTENT      -->
+  <!-- =============================== -->
+  <div class="card-scene" id="cardScene">
+    <!-- Question Screen (inside the card) -->
+    <div class="card" id="theCard">
+      <div class="question-screen" id="questionScreen">
+        <div class="word-image-wrap">
+          <img src="word.png" alt="BE MY Valentine?" class="word-image">
+        </div>
+        <img src="cupid.png" alt="Cupids" class="cupid-image">
+        <p class="subtitle">choose wisely...</p>
+        <div class="buttons-area" id="buttonsArea">
+          <button class="btn-yes" id="btnYes">Yes!!!</button>
+          <button class="btn-no" id="btnNo">No =(</button>
+        </div>
+      </div>
+
+      <!-- Success Screen -->
+      <div class="success-screen" id="successScreen">
+        <img src="cupid.png" alt="Cupids" class="success-cupid">
+        <h2 class="success-title">Yay!!!</h2>
+        <p class="success-message">I knew you'd make the right choice!</p>
+        <div class="success-card">
+          <div class="success-card-title">~ Reservation Confirmed ~</div>
+          <div class="success-card-detail">
+            You have reserved yourself<br>
+            <strong>a date on Valentine's Day</strong><br>
+            <span style="opacity:0.6;">Feb 14, 2026 -- All day</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confetti -->
+  <div class="confetti-container" id="confettiContainer"></div>
+
+  <script>
+    // ==========================================
+    // SVG heart helper
+    // ==========================================
+    function createHeartSVG(color, size) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('width', size);
+      svg.setAttribute('height', size);
+      svg.setAttribute('fill', color);
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z');
+      svg.appendChild(path);
+      return svg;
+    }
+
+    const heartColors = ['#e01030', '#c00020', '#d41040', '#ff3050', '#cc1830'];
+
+    // ==========================================
+    // Floating hearts background
+    // ==========================================
+    const heartsBg = document.getElementById('heartsBg');
+
+    function createFloatingHeart() {
+      const wrapper = document.createElement('div');
+      wrapper.classList.add('floating-heart');
+      const size = 14 + Math.random() * 18;
+      wrapper.style.width = size + 'px';
+      wrapper.style.height = size + 'px';
+      const color = heartColors[Math.floor(Math.random() * heartColors.length)];
+      wrapper.appendChild(createHeartSVG(color, size));
+      wrapper.style.left = Math.random() * 100 + '%';
+      wrapper.style.animationDuration = (8 + Math.random() * 12) + 's';
+      wrapper.style.animationDelay = Math.random() * 5 + 's';
+      heartsBg.appendChild(wrapper);
+      setTimeout(() => wrapper.remove(), 25000);
+    }
+
+    for (let i = 0; i < 12; i++) {
+      setTimeout(createFloatingHeart, i * 300);
+    }
+    setInterval(createFloatingHeart, 2000);
+
+    // ==========================================
+    // ENVELOPE OPEN LOGIC
+    // ==========================================
+    const envelopeScene = document.getElementById('envelopeScene');
+    const envelopeWrapper = document.getElementById('envelopeWrapper');
+    const envelopeFlap = document.getElementById('envelopeFlap');
+    const envelopeSeal = document.getElementById('envelopeSeal');
+    const cardScene = document.getElementById('cardScene');
+
+    let envelopeOpened = false;
+
+    function openEnvelope() {
+      if (envelopeOpened) return;
+      envelopeOpened = true;
+
+      // 1. Hide the seal
+      envelopeSeal.classList.add('hide');
+
+      // 2. Open the flap
+      envelopeFlap.classList.add('open');
+
+      // 3. After flap opens, fade out envelope & show card
+      setTimeout(() => {
+        envelopeScene.classList.add('opened');
+
+        // Show card scene
+        cardScene.classList.add('visible');
+
+        // Remove envelope from DOM after transition
+        setTimeout(() => {
+          envelopeScene.classList.add('gone');
+        }, 700);
+      }, 800);
+    }
+
+    envelopeWrapper.addEventListener('click', openEnvelope);
+    envelopeWrapper.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      openEnvelope();
+    });
+
+    // ==========================================
+    // No button escape logic
+    // ==========================================
+    const btnNo = document.getElementById('btnNo');
+    const btnYes = document.getElementById('btnYes');
+    const buttonsArea = document.getElementById('buttonsArea');
+    const questionScreen = document.getElementById('questionScreen');
+    const successScreen = document.getElementById('successScreen');
+
+    let noX = 0;
+    let noY = 0;
+    let isAnimating = false;
+    let escapeCount = 0;
+    let escapeRadius = 120;
+    let isPanicking = false;
+
+    const panicTexts = [
+      'No =(', 'Nope!', 'N-no...', 'Stop!', 'Ahh!!',
+      'Nooo!', 'Catch me!', 'Never!', 'Too slow~', 'Bye~',
+      "Can't touch this!", 'Hehe', 'NOOOO', 'HELP!', 'Eek!'
+    ];
+
+    function initNoPosition() {
+      const areaRect = buttonsArea.getBoundingClientRect();
+      noX = (areaRect.width / 2) + 30;
+      noY = 0;
+      btnNo.style.left = noX + 'px';
+      btnNo.style.top = noY + 'px';
+    }
+
+    // Init after card becomes visible
+    const observer = new MutationObserver(() => {
+      if (cardScene.classList.contains('visible')) {
+        setTimeout(initNoPosition, 900);
+        observer.disconnect();
+      }
+    });
+    observer.observe(cardScene, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', () => {
+      if (cardScene.classList.contains('visible')) initNoPosition();
+    });
+
+    function getDistanceToNo(clientX, clientY) {
+      const noRect = btnNo.getBoundingClientRect();
+      const noCenterX = noRect.left + noRect.width / 2;
+      const noCenterY = noRect.top + noRect.height / 2;
+      const dx = clientX - noCenterX;
+      const dy = clientY - noCenterY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function dropTrail() {
+      const noRect = btnNo.getBoundingClientRect();
+      const trail = document.createElement('div');
+      trail.classList.add('escape-trail');
+      const size = 10 + Math.random() * 10;
+      trail.style.width = size + 'px';
+      trail.style.height = size + 'px';
+      const color = heartColors[Math.floor(Math.random() * heartColors.length)];
+      trail.appendChild(createHeartSVG(color, size));
+      trail.style.left = (noRect.left + noRect.width / 2 - size / 2) + 'px';
+      trail.style.top = (noRect.top + noRect.height / 2 - size / 2) + 'px';
+      document.body.appendChild(trail);
+      setTimeout(() => trail.remove(), 700);
+    }
+
+    function clampToViewport(x, y, w, h) {
+      const margin = 15;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      return {
+        x: Math.max(margin, Math.min(vw - w - margin, x)),
+        y: Math.max(margin, Math.min(vh - h - margin, y))
+      };
+    }
+
+    function overlapsYes(localX, localY, btnW, btnH) {
+      const areaRect = buttonsArea.getBoundingClientRect();
+      const yesRect = btnYes.getBoundingClientRect();
+      const yesLocalX = yesRect.left - areaRect.left;
+      const yesLocalY = yesRect.top - areaRect.top;
+      const overlapX = Math.abs((localX + btnW / 2) - (yesLocalX + yesRect.width / 2));
+      const overlapY = Math.abs((localY + btnH / 2) - (yesLocalY + yesRect.height / 2));
+      return overlapX < (btnW + yesRect.width) / 2 + 30 && overlapY < (btnH + yesRect.height) / 2 + 30;
+    }
+
+    function escapeFrom(pointerX, pointerY) {
+      if (isAnimating) return;
+      isAnimating = true;
+      escapeCount++;
+
+      btnNo.textContent = panicTexts[Math.floor(Math.random() * panicTexts.length)];
+
+      btnNo.classList.remove('scared');
+      void btnNo.offsetWidth;
+      btnNo.classList.add('scared');
+
+      if (escapeCount >= 3 && !isPanicking) {
+        isPanicking = true;
+        btnNo.classList.add('panicking');
+      }
+
+      const shrinkScale = Math.max(0.75, 1 - escapeCount * 0.02);
+      btnNo.style.scale = shrinkScale;
+
+      const areaRect = buttonsArea.getBoundingClientRect();
+      const noRect = btnNo.getBoundingClientRect();
+      const noCenterX = noRect.left + noRect.width / 2;
+      const noCenterY = noRect.top + noRect.height / 2;
+      const btnW = btnNo.offsetWidth;
+      const btnH = btnNo.offsetHeight;
+
+      let awayX = noCenterX - pointerX;
+      let awayY = noCenterY - pointerY;
+      const dist = Math.sqrt(awayX * awayX + awayY * awayY) || 1;
+      awayX /= dist;
+      awayY /= dist;
+
+      const numWaypoints = 3 + Math.floor(Math.random() * 2);
+      const waypoints = [];
+      let curVX = noCenterX;
+      let curVY = noCenterY;
+
+      for (let i = 0; i < numWaypoints; i++) {
+        const isLast = i === numWaypoints - 1;
+        const segmentDist = isLast ? (150 + Math.random() * 100) : (60 + Math.random() * 80);
+
+        const zigDir = (i % 2 === 0 ? 1 : -1) * (Math.random() > 0.3 ? 1 : -1);
+        const zigAngle = zigDir * (0.6 + Math.random() * 1.2);
+        const cosA = Math.cos(zigAngle);
+        const sinA = Math.sin(zigAngle);
+        const moveX = awayX * cosA - awayY * sinA;
+        const moveY = awayX * sinA + awayY * cosA;
+
+        let wpVX = curVX + moveX * segmentDist;
+        let wpVY = curVY + moveY * segmentDist;
+
+        const clamped = clampToViewport(wpVX - btnW / 2, wpVY - btnH / 2, btnW, btnH);
+        wpVX = clamped.x + btnW / 2;
+        wpVY = clamped.y + btnH / 2;
+
+        let localX = wpVX - btnW / 2 - areaRect.left;
+        let localY = wpVY - btnH / 2 - areaRect.top;
+
+        if (isLast && overlapsYes(localX, localY, btnW, btnH)) {
+          localX += (Math.random() > 0.5 ? 1 : -1) * 140;
+          localY += (Math.random() > 0.5 ? 1 : -1) * 80;
+          const reClamped = clampToViewport(localX + areaRect.left, localY + areaRect.top, btnW, btnH);
+          localX = reClamped.x - areaRect.left;
+          localY = reClamped.y - areaRect.top;
+        }
+
+        waypoints.push({ localX, localY });
+        curVX = localX + btnW / 2 + areaRect.left;
+        curVY = localY + btnH / 2 + areaRect.top;
+      }
+
+      const legDuration = 120;
+      let delay = 0;
+
+      waypoints.forEach((wp, i) => {
+        setTimeout(() => {
+          dropTrail();
+
+          const easing = i < numWaypoints - 1
+            ? 'cubic-bezier(0.2, 0.9, 0.3, 1)'
+            : 'cubic-bezier(0.3, 1.4, 0.4, 1)';
+
+          btnNo.style.transition = `left ${legDuration}ms ${easing}, top ${legDuration}ms ${easing}`;
+          btnNo.style.left = wp.localX + 'px';
+          btnNo.style.top = wp.localY + 'px';
+
+          if (i === waypoints.length - 1) {
+            noX = wp.localX;
+            noY = wp.localY;
+            setTimeout(() => {
+              btnNo.style.transition = 'none';
+              isAnimating = false;
+            }, legDuration + 30);
+          }
+        }, delay);
+        delay += legDuration + 20;
+      });
+
+      escapeRadius = Math.min(180, 120 + escapeCount * 3);
+
+      if (escapeCount % 4 === 0 && escapeCount > 0) {
+        const yesScale = Math.min(1.3, 1 + escapeCount * 0.015);
+        btnYes.style.transition = 'transform 0.3s ease';
+        btnYes.style.transform = `scale(${yesScale})`;
+      }
+    }
+
+    // Mouse tracking
+    document.addEventListener('mousemove', (e) => {
+      if (!cardScene.classList.contains('visible')) return;
+      const dist = getDistanceToNo(e.clientX, e.clientY);
+      if (dist < escapeRadius) escapeFrom(e.clientX, e.clientY);
+    });
+
+    // Touch tracking
+    document.addEventListener('touchmove', (e) => {
+      if (!cardScene.classList.contains('visible')) return;
+      const touch = e.touches[0];
+      const dist = getDistanceToNo(touch.clientX, touch.clientY);
+      if (dist < escapeRadius) escapeFrom(touch.clientX, touch.clientY);
+    }, { passive: true });
+
+    document.addEventListener('touchstart', (e) => {
+      if (!cardScene.classList.contains('visible')) return;
+      const touch = e.touches[0];
+      const dist = getDistanceToNo(touch.clientX, touch.clientY);
+      if (dist < escapeRadius + 20) escapeFrom(touch.clientX, touch.clientY);
+    }, { passive: true });
+
+    btnNo.addEventListener('click', (e) => {
+      e.preventDefault();
+      escapeFrom(e.clientX, e.clientY);
+    });
+
+    btnNo.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (e.changedTouches[0]) {
+        escapeFrom(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      }
+    });
+
+    // ==========================================
+    // Yes button - success!
+    // ==========================================
+    btnYes.addEventListener('click', (e) => {
+      launchConfetti();
+      launchHeartBurst(e.clientX, e.clientY);
+
+      setTimeout(() => {
+        questionScreen.classList.add('hidden');
+        questionScreen.style.display = 'none';
+        successScreen.classList.add('active');
+      }, 400);
+    });
+
+    // ==========================================
+    // Confetti & heart burst
+    // ==========================================
+    const confettiContainer = document.getElementById('confettiContainer');
+    const confettiColors = ['#e01030', '#c00020', '#ff3050', '#d41040', '#f7b4c4', '#fcc8d4', '#ff6080'];
+
+    function launchConfetti() {
+      for (let i = 0; i < 80; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.classList.add('confetti');
+
+          if (Math.random() > 0.5) {
+            const size = 12 + Math.random() * 12;
+            confetti.style.width = size + 'px';
+            confetti.style.height = size + 'px';
+            const color = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+            confetti.appendChild(createHeartSVG(color, size));
+          } else {
+            const size = 6 + Math.random() * 8;
+            confetti.style.width = size + 'px';
+            confetti.style.height = size + 'px';
+            confetti.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+            confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+          }
+
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+          confettiContainer.appendChild(confetti);
+          setTimeout(() => confetti.remove(), 4500);
+        }, i * 30);
+      }
+    }
+
+    function launchHeartBurst(cx, cy) {
+      for (let i = 0; i < 12; i++) {
+        const h = document.createElement('div');
+        h.classList.add('heart-burst');
+        const size = 20 + Math.random() * 16;
+        h.style.width = size + 'px';
+        h.style.height = size + 'px';
+        const color = heartColors[Math.floor(Math.random() * heartColors.length)];
+        h.appendChild(createHeartSVG(color, size));
+        h.style.left = cx + 'px';
+        h.style.top = cy + 'px';
+        const angle = (Math.PI * 2 / 12) * i;
+        const distance = 80 + Math.random() * 120;
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+        h.style.transform = `translate(0, 0) scale(0.5)`;
+        h.style.opacity = '1';
+        document.body.appendChild(h);
+
+        requestAnimationFrame(() => {
+          h.style.transition = 'transform 0.8s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.8s ease';
+          h.style.transform = `translate(${tx}px, ${ty}px) scale(1.2)`;
+          h.style.opacity = '0';
+        });
+
+        setTimeout(() => h.remove(), 1000);
+      }
+    }
+  </script>
+</body>
+</html>
